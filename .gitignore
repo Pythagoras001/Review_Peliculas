@@ -17,6 +17,10 @@ pnpm-debug.log*
 .env
 .env.production
 
+requerimientos-taller2.md
+.agents
+.claude
+
 # macOS-specific files
 .DS_Store
 
