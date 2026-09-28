@@ -1,0 +1,70 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+// SSG: se pre-renderiza en el build; Supabase se usa desde el navegador (R4)
+export const prerender = true;
+---
+
+<Layout title="Registro">
+  <div class="mx-auto max-w-sm">
+    <h1 class="mb-6 text-3xl font-bold">Crear cuenta</h1>
+
+    <form id="form-registro" class="space-y-4">
+      <input name="email" type="email" required placeholder="Correo"
+        class="w-full rounded border border-zinc-700 bg-zinc-900 px-3 py-2" />
+      <input name="password" type="password" required minlength="6" placeholder="Contraseña (mín. 6 caracteres)"
+        class="w-full rounded border border-zinc-700 bg-zinc-900 px-3 py-2" />
+      <button class="w-full rounded bg-amber-500 py-2 font-semibold text-zinc-950 hover:bg-amber-400 disabled:opacity-50">
+        Registrarme
+      </button>
+    </form>
+
+    <p id="mensaje" class="mt-4 text-sm"></p>
+
+    <p class="mt-6 text-sm text-zinc-400">
+      ¿Ya tienes cuenta? <a href="/login" class="text-amber-400 underline">Inicia sesión</a>
+    </p>
+  </div>
+</Layout>
+
+<script>
+  import { supabase } from '../lib/supabase';
+  import { navigate } from 'astro:transitions/client';
+
+  // Con <ClientRouter /> los scripts no se re-ejecutan al navegar:
+  // la lógica va dentro de astro:page-load
+  document.addEventListener('astro:page-load', () => {
+    const form = document.querySelector<HTMLFormElement>('#form-registro');
+    if (!form) return; // no estamos en esta página
+
+    const mensaje = document.querySelector<HTMLParagraphElement>('#mensaje')!;
+    const boton = form.querySelector('button')!;
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const datos = new FormData(form);
+      boton.disabled = true;
+      mensaje.textContent = '';
+
+      const { data, error } = await supabase.auth.signUp({
+        email: String(datos.get('email')),
+        password: String(datos.get('password')),
+      });
+
+      boton.disabled = false;
+
+      if (error) {
+        mensaje.className = 'mt-4 text-sm text-red-400';
+        mensaje.textContent = error.message;
+        return;
+      }
+
+      if (data.session) {
+        navigate('/admin'); // sin confirmación de email: ya hay sesión
+      } else {
+        mensaje.className = 'mt-4 text-sm text-green-400';
+        mensaje.textContent = 'Cuenta creada. Revisa tu correo para confirmarla.';
+      }
+    });
+  });
+</script>
