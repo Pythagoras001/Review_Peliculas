@@ -1,17 +1,46 @@
 ---
+import Layout from '../layouts/Layout.astro';
+import { supabase } from '../lib/supabase';
+import type { Resena } from '../lib/types';
 
+// SSR: esta página se genera en el servidor en cada request (R1)
+export const prerender = false;
+
+const { data, error } = await supabase
+  .from('resenas')
+  .select('*')
+  .order('id', { ascending: false });
+
+const resenas = (data ?? []) as Resena[];
+
+const estrellas = (n: number | null) => '★'.repeat(n ?? 0) + '☆'.repeat(5 - (n ?? 0));
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<Layout title="Inicio">
+  <h1 class="mb-6 text-3xl font-bold">Reseñas de películas</h1>
+
+  {error && (
+    <p class="rounded bg-red-900/50 p-4 text-red-200">
+      Error al cargar las reseñas: {error.message}
+    </p>
+  )}
+
+  {!error && resenas.length === 0 && (
+    <p class="text-zinc-400">No hay reseñas todavía.</p>
+  )}
+
+  <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    {resenas.map((r) => (
+      <li class="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
+        <h2 class="text-lg font-semibold">{r.titulo}</h2>
+        <p class="text-sm text-zinc-400">
+          {r.director} · {r.anio} · {r.genero}
+        </p>
+        <p class="my-2 text-amber-400" aria-label={`${r.calificacion} de 5`}>
+          {estrellas(r.calificacion)}
+        </p>
+        <p class="text-sm text-zinc-300">{r.resena}</p>
+      </li>
+    ))}
+  </ul>
+</Layout>
