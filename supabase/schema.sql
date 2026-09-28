@@ -70,3 +70,17 @@ insert into public.resenas (titulo, director, anio, genero, calificacion, resena
   ('Volver al futuro', 'Robert Zemeckis', 1985, 'Ciencia ficción', 4, 'Aventura divertida y perfecta para toda la familia.'),
   ('Oppenheimer', 'Christopher Nolan', 2023, 'Drama', 4, 'Densa pero fascinante, con un montaje que mantiene la tensión.'),
   ('¡Huye!', 'Jordan Peele', 2017, 'Terror', 4, 'Terror inteligente con una crítica social muy clara.');
+
+-- 4. Storage para los pósters
+-- Bucket público "posters": máx. 2 MB, solo imágenes
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('posters', 'posters', true, 2097152, array['image/jpeg', 'image/png', 'image/webp']);
+
+-- Cada usuario solo puede subir y borrar archivos dentro de su carpeta: posters/<su user_id>/...
+create policy "Subir posters propios"
+  on storage.objects for insert to authenticated
+  with check (bucket_id = 'posters' and (storage.foldername(name))[1] = auth.uid()::text);
+
+create policy "Borrar posters propios"
+  on storage.objects for delete to authenticated
+  using (bucket_id = 'posters' and (storage.foldername(name))[1] = auth.uid()::text);

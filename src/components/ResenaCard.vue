@@ -14,6 +14,13 @@ const meta = computed(() => [resena.director, resena.anio, resena.genero].filter
 
 <template>
   <li class="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
+    <img
+      v-if="resena.poster_url"
+      :src="resena.poster_url"
+      :alt="`Póster de ${resena.titulo}`"
+      loading="lazy"
+      class="mb-3 aspect-[2/3] w-full rounded object-cover"
+    />
     <h2 class="text-lg font-semibold">{{ resena.titulo }}</h2>
     <p class="text-sm text-zinc-400">{{ meta }}</p>
     <p class="my-2 text-amber-400" :aria-label="`${calificacion} de 5`">

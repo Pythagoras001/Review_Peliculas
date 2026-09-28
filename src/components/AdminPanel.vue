@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Isla de Vue: se usa con client:only="vue", así que todo esto corre en el navegador
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { navigate } from 'astro:transitions/client';
 import { supabase } from '../lib/supabase';
 import type { Resena, ResenaInput } from '../lib/types';
@@ -17,6 +17,12 @@ const guardando = ref(false);
 const mensaje = ref<{ texto: string; ok: boolean } | null>(null);
 const formRef = ref<HTMLFormElement | null>(null);
 
+// Póster: archivo elegido (aún sin subir) y su vista previa local
+const MAX_BYTES = 2 * 1024 * 1024; // mismo límite que el bucket
+const archivo = ref<File | null>(null);
+const previewLocal = ref('');
+const inputArchivo = ref<HTMLInputElement | null>(null);
+
 // Estado del formulario (conectado a los inputs con v-model)
 const formVacio = () => ({
   titulo: '',
@@ -28,6 +34,9 @@ const formVacio = () => ({
   resena: '',
 });
 const form = reactive(formVacio());
+
+// Lo que se muestra: la imagen recién elegida o, al editar, el póster que ya tenía
+const preview = computed(() => previewLocal.value || form.poster_url);
 
 onMounted(async () => {
   // R6: sin sesión, al login
@@ -76,10 +85,55 @@ function leerForm(): ResenaInput {
   };
 }
 
+function elegirArchivo(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0] ?? null;
+  if (file && file.size > MAX_BYTES) {
+    mensaje.value = { texto: 'La imagen no puede pesar más de 2 MB.', ok: false };
+    quitarPoster();
+    return;
+  }
+  if (previewLocal.value) URL.revokeObjectURL(previewLocal.value);
+  archivo.value = file;
+  previewLocal.value = file ? URL.createObjectURL(file) : '';
+}
+
+function quitarPoster() {
+  if (previewLocal.value) URL.revokeObjectURL(previewLocal.value);
+  archivo.value = null;
+  previewLocal.value = '';
+  form.poster_url = '';
+  if (inputArchivo.value) inputArchivo.value.value = '';
+}
+
+// Sube la imagen a Supabase Storage y devuelve su URL pública.
+// Ruta: posters/<user_id>/<uuid>.<ext> (las políticas solo permiten subir a la carpeta propia)
+async function subirPoster(file: File) {
+  const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+  const ruta = `${userId.value}/${crypto.randomUUID()}.${extension}`;
+
+  const { error } = await supabase.storage
+    .from('posters')
+    .upload(ruta, file, { contentType: file.type });
+  if (error) throw error;
+
+  return supabase.storage.from('posters').getPublicUrl(ruta).data.publicUrl;
+}
+
 // CREATE / UPDATE: el mismo formulario sirve para las dos
 async function guardar() {
   guardando.value = true;
   const datos = leerForm();
+
+  // Si se eligió una imagen nueva, primero se sube y su URL va en poster_url
+  if (archivo.value) {
+    try {
+      datos.poster_url = await subirPoster(archivo.value);
+    } catch (e) {
+      guardando.value = false;
+      mensaje.value = { texto: `No se pudo subir la imagen: ${(e as Error).message}`, ok: false };
+      return;
+    }
+  }
 
   // En insert no se envía user_id: Supabase lo pone con default auth.uid()
   const { error } = editandoId.value
@@ -100,6 +154,7 @@ async function guardar() {
 
 // Pasa el formulario a modo edición con los datos de la reseña
 function editar(r: Resena) {
+  quitarPoster();
   editandoId.value = r.id;
   Object.assign(form, {
     titulo: r.titulo,
@@ -115,6 +170,7 @@ function editar(r: Resena) {
 }
 
 function limpiar() {
+  quitarPoster();
   editandoId.value = null;
   Object.assign(form, formVacio());
 }
@@ -163,7 +219,27 @@ async function eliminar(r: Resena) {
           {{ '★'.repeat(n) + '☆'.repeat(5 - n) }} ({{ n }})
         </option>
       </select>
-      <input v-model="form.poster_url" type="url" placeholder="URL del póster (opcional)" :class="[input, 'sm:col-span-2']" />
+      <div class="flex items-center gap-4 sm:col-span-2">
+        <img
+          v-if="preview"
+          :src="preview"
+          alt="Vista previa del póster"
+          class="h-24 w-16 shrink-0 rounded object-cover"
+        />
+        <label class="flex-1 text-sm text-zinc-400">
+          Póster (opcional, JPG/PNG/WebP, máx. 2 MB)
+          <input
+            ref="inputArchivo"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            class="mt-1 block w-full text-sm file:mr-3 file:rounded file:border-0 file:bg-zinc-700 file:px-3 file:py-1 file:text-zinc-100 hover:file:bg-zinc-600"
+            @change="elegirArchivo"
+          />
+        </label>
+        <button v-if="preview" type="button" class="text-sm text-red-400 hover:underline" @click="quitarPoster">
+          Quitar
+        </button>
+      </div>
       <textarea v-model="form.resena" rows="3" placeholder="Tu reseña" :class="[input, 'sm:col-span-2']"></textarea>
 
       <div class="flex gap-2 sm:col-span-2">
