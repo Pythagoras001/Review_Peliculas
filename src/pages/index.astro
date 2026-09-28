@@ -1,7 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import ResenaCard from '../components/ResenaCard.vue';
-import Paginacion from '../components/Paginacion.vue';
+import ListadoResenas from '../components/ListadoResenas.vue';
 import { supabase } from '../lib/supabase';
 import type { Resena } from '../lib/types';
 
@@ -36,42 +35,13 @@ const totalPaginas = Math.max(1, Math.ceil((count ?? 0) / POR_PAGINA));
 ---
 
 <Layout title="Inicio">
-  <h1 class="mb-6 text-3xl font-bold">Reseñas de películas</h1>
-
-  <form method="GET" action="/" class="mb-6 flex gap-2">
-    <input
-      type="search"
-      name="q"
-      value={q}
-      placeholder="Buscar por título..."
-      class="flex-1 rounded border border-zinc-700 bg-zinc-900 px-3 py-2"
-    />
-    <button class="rounded bg-amber-500 px-4 py-2 font-semibold text-zinc-950 hover:bg-amber-400">
-      Buscar
-    </button>
-  </form>
-
-  {q && (
-    <p class="mb-4 text-sm text-zinc-400">
-      {count ?? 0} resultado(s) para "{q}" · <a href="/" class="text-amber-400 underline">Limpiar</a>
-    </p>
-  )}
-
-  {error && (
-    <p class="rounded bg-red-900/50 p-4 text-red-200">
-      Error al cargar las reseñas: {error.message}
-    </p>
-  )}
-
-  {!error && resenas.length === 0 && (
-    <p class="text-zinc-400">
-      {q ? 'No se encontraron reseñas con ese título.' : 'No hay reseñas todavía.'}
-    </p>
-  )}
-
-  <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-    {resenas.map((r) => <ResenaCard resena={r} />)}
-  </ul>
-
-  <Paginacion page={page} totalPaginas={totalPaginas} q={q} />
+  <!-- Sin client:*: Vue renderiza la vista en el servidor (R3) -->
+  <ListadoResenas
+    resenas={resenas}
+    q={q}
+    page={page}
+    totalPaginas={totalPaginas}
+    total={count ?? 0}
+    error={error?.message}
+  />
 </Layout>
