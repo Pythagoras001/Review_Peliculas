@@ -1,0 +1,48 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+// SSG: esta página se genera una sola vez en el build (R7)
+export const prerender = true;
+---
+
+<Layout title="Acerca de">
+  <h1 class="mb-6 text-3xl font-bold">Acerca de CineReseñas</h1>
+
+  <section class="mb-8 space-y-3 text-zinc-300">
+    <p>
+      CineReseñas es una plataforma para compartir opiniones sobre películas.
+      Cualquier persona puede explorar y buscar reseñas, y los usuarios registrados
+      pueden publicar, editar y eliminar las suyas.
+    </p>
+  </section>
+
+  <section class="mb-8">
+    <h2 class="mb-3 text-xl font-semibold text-amber-400">¿Cómo está construido?</h2>
+    <ul class="grid gap-3 sm:grid-cols-2">
+      <li class="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
+        <strong>Listado (SSR)</strong>
+        <p class="text-sm text-zinc-400">Se genera en el servidor en cada visita, con búsqueda y paginación.</p>
+      </li>
+      <li class="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
+        <strong>Páginas estáticas (SSG)</strong>
+        <p class="text-sm text-zinc-400">Acerca de, login, registro y administración se pre-renderizan en el build.</p>
+      </li>
+      <li class="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
+        <strong>Supabase</strong>
+        <p class="text-sm text-zinc-400">Base de datos, autenticación y seguridad con políticas RLS.</p>
+      </li>
+      <li class="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
+        <strong>Cloudflare Workers</strong>
+        <p class="text-sm text-zinc-400">Hospeda el sitio y ejecuta las páginas SSR.</p>
+      </li>
+    </ul>
+  </section>
+
+  <section>
+    <h2 class="mb-3 text-xl font-semibold text-amber-400">Equipo</h2>
+    <ul class="list-inside list-disc text-zinc-300">
+      <li>Nombre integrante 1</li>
+      <li>Nombre integrante 2</li>
+    </ul>
+  </section>
+</Layout>
