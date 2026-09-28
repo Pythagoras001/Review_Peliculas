@@ -1,0 +1,235 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+// SSG: el HTML es igual para todos; la sesión y los datos se cargan en el navegador (R4)
+export const prerender = true;
+
+const input = 'rounded border border-zinc-700 bg-zinc-950 px-3 py-2';
+---
+
+<Layout title="Mis reseñas">
+  <p id="cargando" class="text-zinc-400">Verificando sesión...</p>
+
+  <div id="panel" class="hidden">
+    <div class="mb-6 flex items-center justify-between gap-4">
+      <div>
+        <h1 class="text-3xl font-bold">Mis reseñas</h1>
+        <p id="usuario" class="text-sm text-zinc-400"></p>
+      </div>
+      <button id="btn-logout" class="rounded border border-zinc-700 px-4 py-2 hover:border-red-400 hover:text-red-400">
+        Cerrar sesión
+      </button>
+    </div>
+
+    <form id="form-resena" class="mb-10 grid gap-3 rounded-lg border border-zinc-800 bg-zinc-900 p-4 sm:grid-cols-2">
+      <h2 id="form-titulo" class="text-xl font-semibold text-amber-400 sm:col-span-2">Nueva reseña</h2>
+      <input type="hidden" name="id" />
+      <input name="titulo" required placeholder="Título *" class={`${input} sm:col-span-2`} />
+      <input name="director" placeholder="Director" class={input} />
+      <input name="anio" type="number" min="1880" max="2100" placeholder="Año" class={input} />
+      <input name="genero" placeholder="Género" class={input} />
+      <select name="calificacion" required class={input}>
+        <option value="">Calificación *</option>
+        <option value="5">★★★★★ (5)</option>
+        <option value="4">★★★★☆ (4)</option>
+        <option value="3">★★★☆☆ (3)</option>
+        <option value="2">★★☆☆☆ (2)</option>
+        <option value="1">★☆☆☆☆ (1)</option>
+      </select>
+      <input name="poster_url" type="url" placeholder="URL del póster (opcional)" class={`${input} sm:col-span-2`} />
+      <textarea name="resena" rows="3" placeholder="Tu reseña" class={`${input} sm:col-span-2`}></textarea>
+      <div class="flex gap-2 sm:col-span-2">
+        <button id="btn-guardar" class="rounded bg-amber-500 px-4 py-2 font-semibold text-zinc-950 hover:bg-amber-400 disabled:opacity-50">
+          Publicar
+        </button>
+        <button id="btn-cancelar" type="button" class="hidden rounded border border-zinc-700 px-4 py-2">
+          Cancelar edición
+        </button>
+      </div>
+      <p id="mensaje" class="text-sm sm:col-span-2"></p>
+    </form>
+
+    <ul id="lista" class="space-y-3"></ul>
+    <p id="vacio" class="hidden text-zinc-400">Todavía no has publicado reseñas.</p>
+  </div>
+
+  <!-- Molde de cada fila; el script lo clona por cada reseña -->
+  <template id="tpl-resena">
+    <li class="flex items-start justify-between gap-4 rounded-lg border border-zinc-800 bg-zinc-900 p-4">
+      <div>
+        <h3 data-campo="titulo" class="font-semibold"></h3>
+        <p data-campo="meta" class="text-sm text-zinc-400"></p>
+        <p data-campo="estrellas" class="text-amber-400"></p>
+      </div>
+      <div class="flex shrink-0 gap-2">
+        <button data-accion="editar" class="rounded border border-zinc-700 px-3 py-1 text-sm hover:border-amber-400">Editar</button>
+        <button data-accion="eliminar" class="rounded border border-zinc-700 px-3 py-1 text-sm hover:border-red-400 hover:text-red-400">Eliminar</button>
+      </div>
+    </li>
+  </template>
+</Layout>
+
+<script>
+  import { supabase } from '../lib/supabase';
+  import { navigate } from 'astro:transitions/client';
+  import type { Resena, ResenaInput } from '../lib/types';
+
+  document.addEventListener('astro:page-load', async () => {
+    const panel = document.querySelector<HTMLDivElement>('#panel');
+    if (!panel) return; // no estamos en esta página
+
+    // R6: sin sesión, al login
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      navigate('/login');
+      return;
+    }
+
+    const userId = session.user.id;
+    document.querySelector('#cargando')!.classList.add('hidden');
+    panel.classList.remove('hidden');
+    document.querySelector('#usuario')!.textContent = session.user.email ?? '';
+
+    const form = document.querySelector<HTMLFormElement>('#form-resena')!;
+    const formTitulo = document.querySelector('#form-titulo')!;
+    const btnGuardar = document.querySelector<HTMLButtonElement>('#btn-guardar')!;
+    const btnCancelar = document.querySelector<HTMLButtonElement>('#btn-cancelar')!;
+    const btnLogout = document.querySelector<HTMLButtonElement>('#btn-logout')!;
+    const mensaje = document.querySelector<HTMLParagraphElement>('#mensaje')!;
+    const lista = document.querySelector<HTMLUListElement>('#lista')!;
+    const vacio = document.querySelector<HTMLParagraphElement>('#vacio')!;
+    const tpl = document.querySelector<HTMLTemplateElement>('#tpl-resena')!;
+
+    const campo = (nombre: string) =>
+      form.elements.namedItem(nombre) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+
+    function mostrarMensaje(texto: string, ok: boolean) {
+      mensaje.className = `text-sm sm:col-span-2 ${ok ? 'text-green-400' : 'text-red-400'}`;
+      mensaje.textContent = texto;
+    }
+
+    // READ: solo las reseñas del usuario conectado
+    async function cargar() {
+      const { data, error } = await supabase
+        .from('resenas')
+        .select('*')
+        .eq('user_id', userId)
+        .order('id', { ascending: false });
+
+      if (error) {
+        mostrarMensaje(error.message, false);
+        return;
+      }
+
+      const resenas = data as Resena[];
+      lista.replaceChildren(...resenas.map(crearItem));
+      vacio.classList.toggle('hidden', resenas.length > 0);
+    }
+
+    function crearItem(r: Resena) {
+      const li = tpl.content.firstElementChild!.cloneNode(true) as HTMLLIElement;
+      // textContent (no innerHTML) para no ejecutar HTML que alguien escriba en una reseña
+      li.querySelector('[data-campo="titulo"]')!.textContent = r.titulo;
+      li.querySelector('[data-campo="meta"]')!.textContent =
+        [r.director, r.anio, r.genero].filter(Boolean).join(' · ');
+      li.querySelector('[data-campo="estrellas"]')!.textContent =
+        '★'.repeat(r.calificacion ?? 0) + '☆'.repeat(5 - (r.calificacion ?? 0));
+      li.querySelector('[data-accion="editar"]')!.addEventListener('click', () => editar(r));
+      li.querySelector('[data-accion="eliminar"]')!.addEventListener('click', () => eliminar(r));
+      return li;
+    }
+
+    // Pasa el formulario a modo edición con los datos de la reseña
+    function editar(r: Resena) {
+      campo('id').value = String(r.id);
+      campo('titulo').value = r.titulo;
+      campo('director').value = r.director ?? '';
+      campo('anio').value = r.anio ? String(r.anio) : '';
+      campo('genero').value = r.genero ?? '';
+      campo('calificacion').value = r.calificacion ? String(r.calificacion) : '';
+      campo('poster_url').value = r.poster_url ?? '';
+      campo('resena').value = r.resena ?? '';
+      formTitulo.textContent = `Editando: ${r.titulo}`;
+      btnGuardar.textContent = 'Guardar cambios';
+      btnCancelar.classList.remove('hidden');
+      mensaje.textContent = '';
+      form.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function limpiarForm() {
+      form.reset();
+      campo('id').value = ''; // reset() no limpia los input hidden
+      formTitulo.textContent = 'Nueva reseña';
+      btnGuardar.textContent = 'Publicar';
+      btnCancelar.classList.add('hidden');
+    }
+
+    // Convierte el formulario en un objeto para Supabase (vacío -> null)
+    function leerForm(): ResenaInput {
+      const datos = new FormData(form);
+      const texto = (k: string) => {
+        const v = String(datos.get(k) ?? '').trim();
+        return v === '' ? null : v;
+      };
+      const anio = texto('anio');
+      return {
+        titulo: texto('titulo') ?? '',
+        director: texto('director'),
+        anio: anio ? Number(anio) : null,
+        genero: texto('genero'),
+        poster_url: texto('poster_url'),
+        calificacion: Number(datos.get('calificacion')),
+        resena: texto('resena'),
+      };
+    }
+
+    // CREATE / UPDATE: el mismo formulario sirve para las dos
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = campo('id').value;
+      const datos = leerForm();
+      btnGuardar.disabled = true;
+
+      // En insert no se envía user_id: Supabase lo pone con default auth.uid()
+      const { error } = id
+        ? await supabase.from('resenas').update(datos).eq('id', Number(id))
+        : await supabase.from('resenas').insert(datos);
+
+      btnGuardar.disabled = false;
+
+      if (error) {
+        mostrarMensaje(error.message, false);
+        return;
+      }
+
+      mostrarMensaje(id ? 'Reseña actualizada.' : 'Reseña publicada.', true);
+      limpiarForm();
+      await cargar();
+    });
+
+    // DELETE
+    async function eliminar(r: Resena) {
+      if (!confirm(`¿Eliminar la reseña de "${r.titulo}"?`)) return;
+
+      const { error } = await supabase.from('resenas').delete().eq('id', r.id);
+
+      if (error) {
+        mostrarMensaje(error.message, false);
+        return;
+      }
+
+      if (campo('id').value === String(r.id)) limpiarForm();
+      mostrarMensaje('Reseña eliminada.', true);
+      await cargar();
+    }
+
+    btnCancelar.addEventListener('click', limpiarForm);
+
+    btnLogout.addEventListener('click', async () => {
+      await supabase.auth.signOut();
+      navigate('/login');
+    });
+
+    await cargar();
+  });
+</script>

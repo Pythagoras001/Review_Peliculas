@@ -1,5 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import ResenaCard from '../components/ResenaCard.vue';
+import Paginacion from '../components/Paginacion.vue';
 import { supabase } from '../lib/supabase';
 import type { Resena } from '../lib/types';
 
@@ -31,17 +33,6 @@ const { data, error: errorConsulta, count } = await query
 const error = errorConsulta?.code === 'PGRST103' ? null : errorConsulta;
 const resenas = (data ?? []) as Resena[];
 const totalPaginas = Math.max(1, Math.ceil((count ?? 0) / POR_PAGINA));
-
-// Arma el link a una página conservando la búsqueda
-function urlPagina(p: number) {
-  const params = new URLSearchParams();
-  if (q) params.set('q', q);
-  if (p > 1) params.set('page', String(p));
-  const qs = params.toString();
-  return qs ? `/?${qs}` : '/';
-}
-
-const estrellas = (n: number | null) => '★'.repeat(n ?? 0) + '☆'.repeat(5 - (n ?? 0));
 ---
 
 <Layout title="Inicio">
@@ -79,31 +70,8 @@ const estrellas = (n: number | null) => '★'.repeat(n ?? 0) + '☆'.repeat(5 - 
   )}
 
   <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-    {resenas.map((r) => (
-      <li class="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
-        <h2 class="text-lg font-semibold">{r.titulo}</h2>
-        <p class="text-sm text-zinc-400">
-          {r.director} · {r.anio} · {r.genero}
-        </p>
-        <p class="my-2 text-amber-400" aria-label={`${r.calificacion} de 5`}>
-          {estrellas(r.calificacion)}
-        </p>
-        <p class="text-sm text-zinc-300">{r.resena}</p>
-      </li>
-    ))}
+    {resenas.map((r) => <ResenaCard resena={r} />)}
   </ul>
 
-  {totalPaginas > 1 && (
-    <nav class="mt-8 flex items-center justify-center gap-4">
-      {page > 1
-        ? <a href={urlPagina(page - 1)} class="rounded border border-zinc-700 px-4 py-2 hover:border-amber-400">← Anterior</a>
-        : <span class="rounded border border-zinc-800 px-4 py-2 text-zinc-600">← Anterior</span>}
-
-      <span class="text-sm text-zinc-400">Página {page} de {totalPaginas}</span>
-
-      {page < totalPaginas
-        ? <a href={urlPagina(page + 1)} class="rounded border border-zinc-700 px-4 py-2 hover:border-amber-400">Siguiente →</a>
-        : <span class="rounded border border-zinc-800 px-4 py-2 text-zinc-600">Siguiente →</span>}
-    </nav>
-  )}
+  <Paginacion page={page} totalPaginas={totalPaginas} q={q} />
 </Layout>

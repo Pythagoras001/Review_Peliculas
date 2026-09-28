@@ -1,5 +1,6 @@
 ---
 import { ClientRouter } from 'astro:transitions';
+import Nav from '../components/Nav.vue';
 import '../styles/global.css';
 
 interface Props {
@@ -19,18 +20,31 @@ const { title } = Astro.props;
     <ClientRouter />
   </head>
   <body class="min-h-screen bg-zinc-950 text-zinc-100">
-    <header class="border-b border-zinc-800">
-      <nav class="mx-auto flex max-w-5xl items-center gap-6 px-4 py-4">
-        <a href="/" class="text-lg font-bold text-amber-400">🎬 CineReseñas</a>
-        <a href="/" class="hover:text-amber-400">Inicio</a>
-        <a href="/acerca-de" class="hover:text-amber-400">Acerca de</a>
-        <a href="/admin" class="hover:text-amber-400">Mis reseñas</a>
-        <a href="/login" class="ml-auto hover:text-amber-400">Iniciar sesión</a>
-      </nav>
-    </header>
+    <Nav />
 
     <main class="mx-auto max-w-5xl px-4 py-8">
       <slot />
     </main>
   </body>
 </html>
+
+<script>
+  import { supabase } from '../lib/supabase';
+  import { navigate } from 'astro:transitions/client';
+
+  // Se ejecuta en cada navegación (el menú se vuelve a pintar en cada página)
+  document.addEventListener('astro:page-load', async () => {
+    const link = document.querySelector<HTMLAnchorElement>('#nav-auth');
+    if (!link) return;
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return; // sin sesión se queda como "Iniciar sesión"
+
+    link.textContent = 'Cerrar sesión';
+    link.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await supabase.auth.signOut();
+      navigate('/');
+    });
+  });
+</script>
