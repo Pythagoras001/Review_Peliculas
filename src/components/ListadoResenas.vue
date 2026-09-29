@@ -16,18 +16,33 @@ const { resenas, q, page, totalPaginas, total, error } = defineProps<{
 </script>
 
 <template>
-  <h1 class="mb-6 text-3xl font-bold">Reseñas de películas</h1>
+  <!-- Encabezado centrado -->
+  <header class="mb-8 text-center">
+    <h1 class="text-4xl font-bold sm:text-5xl">Reseñas de películas</h1>
+    <p class="mt-3 text-zinc-400">Busca una película y descubre qué opina la comunidad.</p>
+  </header>
 
-  <!-- Formulario HTML normal: al enviar, el navegador va a /?q=... y el servidor responde -->
-  <form method="GET" action="/" class="mb-6 flex gap-2">
+  <!-- Formulario HTML normal: al enviar, el navegador va a /?q=... y el servidor responde.
+       Es una sola "barra": el ícono, el input y el botón van dentro del mismo contenedor -->
+  <form
+    method="GET"
+    action="/"
+    role="search"
+    class="mx-auto mb-8 flex max-w-3xl items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 p-1.5 pl-4 focus-within:border-amber-500"
+  >
+    <svg class="h-4 w-4 shrink-0 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20 20l-3.5-3.5" />
+    </svg>
     <input
       type="search"
       name="q"
       :value="q"
       placeholder="Buscar por título..."
-      class="flex-1 rounded border border-zinc-700 bg-zinc-900 px-3 py-2"
+      aria-label="Buscar reseñas por título"
+      class="min-w-0 flex-1 bg-transparent py-2 placeholder:text-zinc-500 focus:outline-none"
     />
-    <button class="rounded bg-amber-500 px-4 py-2 font-semibold text-zinc-950 hover:bg-amber-400">
+    <button class="rounded-lg bg-amber-500 px-4 py-2 font-semibold text-zinc-950 hover:bg-amber-400">
       Buscar
     </button>
   </form>
