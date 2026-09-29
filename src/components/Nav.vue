@@ -24,13 +24,10 @@ const conEstado = computed(() =>
 <template>
   <header class="border-b border-zinc-800 bg-zinc-950">
     <nav class="mx-auto flex h-16 max-w-5xl items-stretch gap-8 px-4">
-      <a href="/" class="flex items-center gap-2 text-lg font-bold text-amber-400">
-        <!-- Ícono de claqueta -->
-        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <rect x="3" y="4" width="18" height="16" rx="2" />
-          <path d="M3 9h18M8 4l-2 5M13 4l-2 5M18 4l-2 5" />
-        </svg>
-        CineReseñas
+      <!-- Logo desde public/logo.png (se sirve en /logo.png). Ya incluye el texto "CineReseñas".
+           width/height = tamaño real de la imagen: el navegador reserva el espacio antes de que cargue -->
+      <a href="/" class="flex shrink-0 items-center">
+        <img src="/logo.png" alt="CineReseñas - Inicio" width="1465" height="374" class="h-9 w-auto" />
       </a>
 
       <!-- items-stretch + h-full: cada link ocupa todo el alto, así la línea queda pegada al borde inferior -->
