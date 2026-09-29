@@ -4,7 +4,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { navigate } from 'astro:transitions/client';
 import { supabase } from '../lib/supabase';
 import type { Resena, ResenaInput } from '../lib/types';
-import ResenaCard from './ResenaCard.vue';
+import MyResenaCard from './MyResenaCard.vue';
 
 const input = 'rounded border border-zinc-700 bg-zinc-950 px-3 py-2';
 
@@ -261,8 +261,9 @@ async function eliminar(r: Resena) {
 
     <p v-if="resenas.length === 0" class="text-zinc-400">Todavía no has publicado reseñas.</p>
 
-    <ul class="grid gap-4 sm:grid-cols-2">
-      <ResenaCard v-for="r in resenas" :key="r.id" :resena="r">
+    <!-- Grid de 3 columnas en escritorio (2 en tablet, 1 en celular); el autor es el correo de la sesión -->
+    <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
+      <MyResenaCard v-for="r in resenas" :key="r.id" :resena="r" :autor="email">
         <button
           class="rounded border border-zinc-700 px-3 py-1 text-sm hover:border-amber-400"
           @click="editar(r)"
@@ -275,7 +276,7 @@ async function eliminar(r: Resena) {
         >
           Eliminar
         </button>
-      </ResenaCard>
+      </MyResenaCard>
     </ul>
   </div>
 </template>
