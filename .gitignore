@@ -26,3 +26,6 @@ requerimientos-taller2.md
 
 # jetbrains setting folder
 .idea/
+
+# wrangler local state
+.wrangler/
