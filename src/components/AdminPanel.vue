@@ -3,6 +3,7 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { navigate } from 'astro:transitions/client';
 import { supabase } from '../lib/supabase';
+import { actualizarResena, crearResena, eliminarResena, listarMisResenas, subirPoster } from '../lib/resenas';
 import type { Resena, ResenaInput } from '../lib/types';
 import MyResenaCard from './MyResenaCard.vue';
 
@@ -33,6 +34,7 @@ const formVacio = () => ({
   poster_url: '',
   resena: '',
 });
+
 const form = reactive(formVacio());
 
 // Lo que se muestra: la imagen recién elegida o, al editar, el póster que ya tenía
@@ -54,17 +56,11 @@ onMounted(async () => {
 
 // READ: solo las reseñas del usuario conectado
 async function cargar() {
-  const { data, error } = await supabase
-    .from('resenas')
-    .select('*')
-    .eq('user_id', userId.value)
-    .order('id', { ascending: false });
-
-  if (error) {
-    mensaje.value = { texto: error.message, ok: false };
-    return;
+  try {
+    resenas.value = await listarMisResenas(userId.value);
+  } catch (e) {
+    mensaje.value = { texto: (e as Error).message, ok: false };
   }
-  resenas.value = data as Resena[];
 }
 
 // Convierte el formulario en un objeto para Supabase (vacío -> null)
@@ -105,51 +101,26 @@ function quitarPoster() {
   if (inputArchivo.value) inputArchivo.value.value = '';
 }
 
-// Sube la imagen a Supabase Storage y devuelve su URL pública.
-// Ruta: posters/<user_id>/<uuid>.<ext> (las políticas solo permiten subir a la carpeta propia)
-async function subirPoster(file: File) {
-  const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-  const ruta = `${userId.value}/${crypto.randomUUID()}.${extension}`;
-
-  const { error } = await supabase.storage
-    .from('posters')
-    .upload(ruta, file, { contentType: file.type });
-  if (error) throw error;
-
-  return supabase.storage.from('posters').getPublicUrl(ruta).data.publicUrl;
-}
-
 // CREATE / UPDATE: el mismo formulario sirve para las dos
 async function guardar() {
   guardando.value = true;
-  const datos = leerForm();
+  try {
+    const datos = leerForm();
 
-  // Si se eligió una imagen nueva, primero se sube y su URL va en poster_url
-  if (archivo.value) {
-    try {
-      datos.poster_url = await subirPoster(archivo.value);
-    } catch (e) {
-      guardando.value = false;
-      mensaje.value = { texto: `No se pudo subir la imagen: ${(e as Error).message}`, ok: false };
-      return;
-    }
+    // Si se eligió una imagen nueva, primero se sube y su URL va en poster_url
+    if (archivo.value) datos.poster_url = await subirPoster(userId.value, archivo.value);
+
+    if (editandoId.value) await actualizarResena(editandoId.value, datos);
+    else await crearResena(datos);
+
+    mensaje.value = { texto: editandoId.value ? 'Reseña actualizada.' : 'Reseña publicada.', ok: true };
+    limpiar();
+    await cargar();
+  } catch (e) {
+    mensaje.value = { texto: (e as Error).message, ok: false };
+  } finally {
+    guardando.value = false; // se ejecuta siempre, haya error o no
   }
-
-  // En insert no se envía user_id: Supabase lo pone con default auth.uid()
-  const { error } = editandoId.value
-    ? await supabase.from('resenas').update(datos).eq('id', editandoId.value)
-    : await supabase.from('resenas').insert(datos);
-
-  guardando.value = false;
-
-  if (error) {
-    mensaje.value = { texto: error.message, ok: false };
-    return;
-  }
-
-  mensaje.value = { texto: editandoId.value ? 'Reseña actualizada.' : 'Reseña publicada.', ok: true };
-  limpiar();
-  await cargar();
 }
 
 // Pasa el formulario a modo edición con los datos de la reseña
@@ -179,16 +150,14 @@ function limpiar() {
 async function eliminar(r: Resena) {
   if (!confirm(`¿Eliminar la reseña de "${r.titulo}"?`)) return;
 
-  const { error } = await supabase.from('resenas').delete().eq('id', r.id);
-
-  if (error) {
-    mensaje.value = { texto: error.message, ok: false };
-    return;
+  try {
+    await eliminarResena(r.id);
+    if (editandoId.value === r.id) limpiar();
+    mensaje.value = { texto: 'Reseña eliminada.', ok: true };
+    await cargar();
+  } catch (e) {
+    mensaje.value = { texto: (e as Error).message, ok: false };
   }
-
-  if (editandoId.value === r.id) limpiar();
-  mensaje.value = { texto: 'Reseña eliminada.', ok: true };
-  await cargar();
 }
 </script>
 
