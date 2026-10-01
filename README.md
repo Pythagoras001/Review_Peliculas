@@ -4,8 +4,7 @@ Aplicación web de reseñas de películas construida con Astro y Vue, con Supaba
 
 Proyecto desarrollado para el Taller #2: Proyecto Astro con arquitectura híbrida (SSR + SSG) en Cloudflare.
 
-- **URL pública:** https://taller2-astro.TU-SUBDOMINIO.workers.dev <!-- TODO: reemplazar por la URL real -->
-- **Autor:** Thomas Gomez
+- **URL pública:** https://taller2-astro.thomas200719.workers.dev
 
 ---
 
